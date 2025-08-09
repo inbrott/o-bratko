@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8" />
+    <title>Quest Intro</title>
+    <style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: transparent;
+    font-family: Arial, sans-serif;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+#menu {
+    background-color: #222;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    width: 350px;
+    display: none;
+}
+button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    margin: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #666;
+}
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h2>Uppdraget</h2>
+        <p>Vill du ta uppdraget?</p>
+        <button id="accept">Ja, jag tar uppdraget</button>
+        <button id="decline">Nej, jag tar inte uppdraget</button>
+    </div>
+
+    <audio id="introAudio" src="sound.mp3" preload="auto"></audio>
+    <audio id="deniedAudio" src="denied.mp3" preload="auto"></audio>
+
+    <script>
+        const introAudio = document.getElementById('introAudio');
+        const deniedAudio = document.getElementById('deniedAudio');
+
+        window.addEventListener('message', function(event) {
+            const action = event.data.action;
+
+            if (action === 'play') {
+                introAudio.currentTime = 0;
+                introAudio.play();
+
+                fetch(`https://${GetParentResourceName()}/sendEventToClient`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({event: 'npcquest:startIntroCam'})
+                });
+
+                introAudio.onended = function() {
+                    fetch(`https://${GetParentResourceName()}/sendEventToClient`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({event: 'npcquest:stopIntroCam'})
+                    });
+
+                    document.getElementById('menu').style.display = 'block';
+                    fetch(`https://${GetParentResourceName()}/setFocus`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({focus:true})
+                    });
+                };
+            }
+            else if (action === 'playDenied') {
+                deniedAudio.currentTime = 0;
+                deniedAudio.play();
+
+                deniedAudio.onended = function() {
+                    fetch(`https://${GetParentResourceName()}/introComplete`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({})
+                    });
+                };
+            }
+            else if (action === 'hideMenu') {
+                document.getElementById('menu').style.display = 'none';
+                fetch(`https://${GetParentResourceName()}/setFocus`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({focus:false})
+                });
+            }
+            else if (action === 'hideCamera') {
+                fetch(`https://${GetParentResourceName()}/sendEventToClient`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({event: 'npcquest:stopIntroCam'})
+                });
+
+                fetch(`https://${GetParentResourceName()}/setFocus`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({focus:false})
+                });
+
+                document.getElementById('menu').style.display = 'none';
+            }
+        });
+
+        document.getElementById('accept').addEventListener('click', () => {
+            fetch(`https://${GetParentResourceName()}/callback`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({accepted: true})
+            });
+
+            document.getElementById('menu').style.display = 'none';
+
+            fetch(`https://${GetParentResourceName()}/introComplete`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            });
+        });
+
+        document.getElementById('decline').addEventListener('click', () => {
+            fetch(`https://${GetParentResourceName()}/callback`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({accepted: false})
+            });
+
+            document.getElementById('menu').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
